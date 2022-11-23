@@ -5,11 +5,16 @@ from os import path
 import requests
 from requests.adapters import HTTPAdapter, Retry
 
-if len(sys.argv) < 2 or len(sys.argv) > 3:
-    print(f"Usage: {sys.argv[0]} COOKIE_VALUE [DEST]")
+# Fix unicode for Git Bash
+sys.stdout.reconfigure(encoding='utf-8')
+
+if len(sys.argv) < 2 or len(sys.argv) > 4:
+    print(f"Usage: {sys.argv[0]} COOKIE_VALUE [DEST] [folder id]")
     exit()
 
 cookies = sys.argv[1]
+dest_folder = sys.argv[2] if len(sys.argv) > 2 else ""
+folder_id = sys.argv[3] if len(sys.argv) == 4 else 0
 
 headers = {
     "Cookie": cookies,
@@ -37,7 +42,7 @@ if not potential_sso_tokens:
 headers["csrf"] = potential_sso_tokens[0]
 
 while True:
-    url = f"https://www.canadapost-postescanada.ca/inbox/rs/mailitem?folderId=0&sortField=1&order=D&offset={offset}&limit={page_size}"
+    url = f"https://www.canadapost-postescanada.ca/inbox/rs/mailitem?folderId={folder_id}&sortField=1&order=D&offset={offset}&limit={page_size}"
     response = s.get(url, headers=headers)
     if response.status_code != 200:
         print(f"Request to {url} failed with HTTP {response.status_code} 🔥")
@@ -58,8 +63,9 @@ while True:
 
     for mail_item in data["mailitemInfos"]:
         desc = mail_item["shortDescription"]
-        file_name = f'{desc}.{mail_item["mailItemID"]}.pdf'.replace("/", "-")
-        file_location = path.join(sys.argv[2] if len(sys.argv) > 2 else "", file_name)
+        bill_date = mail_item["billDate"]
+        file_name = f'{desc}.{bill_date}.pdf'.replace("/", "-")
+        file_location = path.join(dest_folder, file_name)
         if path.exists(file_location):
             print(f"Already downloaded {file_location}, skipping 💪")
             num_processed += 1
